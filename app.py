@@ -1,32 +1,19 @@
-from pymongo.mongo_client import MongoClient
-uri = "mongodb+srv://valeriavolkovaa90:IsYgE2hkDbJjHneW@carstom.sbcvkk5.mongodb.net/?retryWrites=true&w=majority&appName=Carstom"
-client = MongoClient(uri)
-# print(client.admin.command("ping"))
-
-# myquery = { "size": { "$regex": "" } }
-
-
-# print([x["brand"] for x in mydoc])
-
-
-# exit()
-"""
-Example using marshmallow APISpec as base template for Flasgger specs
-"""
-# coding: utf-8
+import jwt
+import datetime
 from functools import wraps
-from flask import Flask, jsonify, request, redirect, Response, g
 
+from flask import Flask, jsonify, request, redirect, Response, g
 from flasgger import APISpec, Schema, Swagger, fields
 from apispec.ext.marshmallow import MarshmallowPlugin
 from apispec_webframeworks.flask import FlaskPlugin
 
-import jwt
-import datetime
-
 import requests
 from requests.auth import HTTPDigestAuth
+from pymongo.mongo_client import MongoClient
 
+
+uri = "mongodb+srv://valeriavolkovaa90:IsYgE2hkDbJjHneW@carstom.sbcvkk5.mongodb.net/?retryWrites=true&w=majority&appName=Carstom"
+client = MongoClient(uri)
 
 # Create an APISpec
 spec = APISpec(
@@ -42,10 +29,6 @@ spec = APISpec(
 app = Flask(__name__)
 SECRET_KEY = "CarstomSecretSecureKey"
 app.config["SECRET_KEY"] = SECRET_KEY
-# app.config["MONGO_URI"] = "mongodb+srv://valeriavolkovaa90:IsYgE2hkDbJjHneW@carstom.sbcvkk5.mongodb.net/?retryWrites=true&w=majority&appName=Carstom"
-# mongo = PyMongo(app)
-
-# db = LocalProxy(get_db)
 
 
 def token_required(f):
@@ -71,8 +54,6 @@ def token_required(f):
     return decorated
 
 
-
-
 @app.route("/api/v1/auth", methods=["GET"])
 def login():
     try:
@@ -90,7 +71,6 @@ def login():
         return dict(message="Successfully fetched auth token", TOKEN=token), 200
     except Exception as e:
         return dict(error="Something went wrong", message=str(e)), 500
-
 
 
 @app.route("/api/v1/brands")
@@ -177,4 +157,4 @@ swag = Swagger(
 
 
 if __name__ == "__main__":
-    app.run(debug=True) #, host="0.0.0.0")
+    app.run(debug=True)
