@@ -1,21 +1,23 @@
+import io
+import os
 import jwt
+import base64
 import datetime
 from functools import wraps
+from dotenv import load_dotenv
 
-from flask import Flask, jsonify, request, redirect, Response, g
+from flask_cors import CORS, cross_origin
+from flask import Flask, jsonify, request
 from flasgger import APISpec, Schema, Swagger, fields
 from apispec.ext.marshmallow import MarshmallowPlugin
 from apispec_webframeworks.flask import FlaskPlugin
-
-import requests
-from requests.auth import HTTPDigestAuth
 from pymongo.mongo_client import MongoClient
 
+from PIL import Image
+from model import Rim_Detector
 
-uri = "mongodb+srv://valeriavolkovaa90:IsYgE2hkDbJjHneW@carstom.sbcvkk5.mongodb.net/?retryWrites=true&w=majority&appName=Carstom"
-client = MongoClient(uri)
-
-# Create an APISpec
+load_dotenv()
+client = MongoClient(os.getenv("MONGO_URI"))
 spec = APISpec(
     title="Flasger Petstore",
     version="1.0.10",
@@ -27,9 +29,10 @@ spec = APISpec(
 )
 
 app = Flask(__name__)
-SECRET_KEY = "CarstomSecretSecureKey"
-app.config["SECRET_KEY"] = SECRET_KEY
-
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+app.config["STATIC_DATE_FOR_AUTH"] = os.getenv("STATIC_DATE_FOR_AUTH")
+CORS(app, resources={r"/api/*": {"origins": ["http://localhost:8000", "https://carstomapp.github.io"]}})
+model = Rim_Detector()
 
 def token_required(f):
     @wraps(f)
@@ -42,7 +45,7 @@ def token_required(f):
         try:
             data=jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
             date=data["date"]
-            if date in ["December091998"]:
+            if date == app.config["STATIC_DATE_FOR_AUTH"]:
                 return f(*args, **kwargs)
             if date != datetime.date.today().strftime("%B%d%Y"):
                 return dict(message="Invalid Authentication token!", data=None, error="Unauthorized"), 401
@@ -130,25 +133,58 @@ def get_years():
     return jsonify(CarModelYearsSchema().dump(years))
 
 
-# Optional marshmallow support
+@app.route("/api/v1/nn", methods=['POST'])
+@token_required
+# @cross_origin()
+def nn_endpoint():
+    """
+    Extracts the rim position from a frame
+    ---
+    description: Extracts the rim position from a frame
+    responses:
+        200:
+            description: X and Y in image coordinates
+            schema:
+                $ref: "#/definitions/Pose2DSchema"
+    """
+    image_data = request.json.get("image")
+    image_data = bytes(image_data[image_data.find(",") + 1:], encoding="ascii")
+    image = Image.open(io.BytesIO(base64.b64decode(image_data))).convert('L')
+
+    x, y = model(image)
+    pose2d = {
+        "coordinates": [
+            {
+                "x": x,
+                "y": y,
+            }
+        ]
+    }
+
+    return jsonify(RimCoordinates().dump(pose2d))
+
+
 class CarBrandsSchema(Schema):
     brands = fields.List(fields.Str())
 
-# Optional marshmallow support
 class CarModelsSchema(Schema):
     models = fields.List(fields.Str())
 
 class CarModelYearsSchema(Schema):
     years = fields.List(fields.Str())
 
+class Pose2DSchema(Schema):
+    x = fields.Int()
+    y = fields.Int()
+
+class RimCoordinates(Schema):
+    coordinates = fields.Nested(Pose2DSchema, many=True)
+
 template = spec.to_flasgger(
     app,
-    definitions=[CarBrandsSchema, CarModelsSchema, CarModelYearsSchema],
-    paths=[get_brands, get_models, get_years]
+    definitions=[CarBrandsSchema, CarModelsSchema, CarModelYearsSchema, Pose2DSchema, RimCoordinates],
+    paths=[get_brands, get_models, get_years, nn_endpoint]
 )
-
-
-# start Flasgger using a template from apispec
 swag = Swagger(
     app,
     template=template,
