@@ -31,6 +31,8 @@ spec = APISpec(
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 app.config["STATIC_DATE_FOR_AUTH"] = os.getenv("STATIC_DATE_FOR_AUTH")
+app.config["AUTH_LOGIN"] = os.getenv("AUTH_LOGIN")
+app.config["AUTH_PASSWORD"] = os.getenv("AUTH_PASSWORD")
 CORS(app, resources={r"/api/*": {"origins": ["http://localhost:8000", "https://carstomapp.github.io"]}})
 model = Rim_Detector()
 
@@ -64,7 +66,7 @@ def login():
         if not data:
             return dict(message="Please provide user details", data=None, error="Bad request"), 400
         # validate input
-        is_validated = data.get("login") == "asavin" and data.get("password") == "asavinpassword1"
+        is_validated = data.get("login") == app.config["AUTH_LOGIN"] and data.get("password") == app.config["AUTH_PASSWORD"]
         if is_validated is not True:
             return dict(message="Error fetching auth token!, invalid login or password - invalid data", data=None, error="Unauthorized"), 404
 
