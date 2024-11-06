@@ -35,6 +35,10 @@ class Rim_Detector:
         mask = np.uint8((out > 0.3) * 255)
         contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contour = sorted(contours, key=lambda x: cv2.contourArea(x), reverse=True)[0]
+
+        if cv2.contourArea(contour) < 2000:
+            return None
+
         ellipse = cv2.fitEllipse(contour)
         ellipse = [[ellipse[0][0], ellipse[0][1]], [ellipse[1][0], ellipse[1][1]], ellipse[2]]
 
@@ -51,4 +55,15 @@ class Rim_Detector:
         ellipse[1][1] *= ratio
         ellipse[1][0] *= ratio
 
-        return int(ellipse[0][0]), int(ellipse[0][1])
+        alpha = np.arccos(ellipse[1][0]/ellipse[1][1])
+        beta = (ellipse[2] / 180) * np.pi
+
+        pose = {
+            "x": int(ellipse[0][0]),
+            "y": int(ellipse[0][1]),
+            "x_normal": np.cos(alpha) * np.cos(beta),
+            "z_normal": np.sin(alpha) * np.cos(beta),
+            "y_normal": np.sin(beta),
+        }
+
+        return pose

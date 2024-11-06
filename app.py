@@ -1,6 +1,7 @@
 import io
 import os
 import jwt
+import json
 import base64
 import datetime
 from functools import wraps
@@ -17,7 +18,7 @@ from PIL import Image
 from model import Rim_Detector
 
 load_dotenv()
-client = MongoClient(os.getenv("MONGO_URI"))
+# client = MongoClient(os.getenv("MONGO_URI"))
 spec = APISpec(
     title="Flasger Petstore",
     version="1.0.10",
@@ -153,17 +154,25 @@ def nn_endpoint():
     image_data = bytes(image_data[image_data.find(",") + 1:], encoding="ascii")
     image = Image.open(io.BytesIO(base64.b64decode(image_data))).convert('L')
 
-    x, y = model(image)
-    pose2d = {
-        "coordinates": [
-            {
-                "x": x,
-                "y": y,
-            }
-        ]
-    }
+    now = datetime.datetime.now()
+    date_time = now.strftime("%m%d%Y_%H%M%S")
+    image.save(f"logs/{date_time}.jpg")
 
-    return jsonify(RimCoordinates().dump(pose2d))
+    output = model(image)
+    with open(f"logs/{date_time}.json", "w") as outfile:
+        json.dump(output, outfile)
+
+
+    if output is None:
+        rim_coordinates = {
+            "coordinates": []
+        }
+    else:
+        rim_coordinates = {
+            "coordinates": [output]
+        }
+
+    return jsonify(RimCoordinatesSchema().dump(rim_coordinates))
 
 
 class CarBrandsSchema(Schema):
@@ -178,15 +187,19 @@ class CarModelYearsSchema(Schema):
 class Pose2DSchema(Schema):
     x = fields.Int()
     y = fields.Int()
+    x_normal = fields.Float()
+    y_normal = fields.Float()
+    z_normal = fields.Float()
 
-class RimCoordinates(Schema):
+class RimCoordinatesSchema(Schema):
     coordinates = fields.Nested(Pose2DSchema, many=True)
 
 template = spec.to_flasgger(
     app,
-    definitions=[CarBrandsSchema, CarModelsSchema, CarModelYearsSchema, Pose2DSchema, RimCoordinates],
+    definitions=[CarBrandsSchema, CarModelsSchema, CarModelYearsSchema, Pose2DSchema, RimCoordinatesSchema],
     paths=[get_brands, get_models, get_years, nn_endpoint]
 )
+
 swag = Swagger(
     app,
     template=template,
