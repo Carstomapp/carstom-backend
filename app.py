@@ -18,7 +18,7 @@ from PIL import Image
 from model import Rim_Detector
 
 load_dotenv()
-client = MongoClient(os.getenv("MONGO_URI"))
+# client = MongoClient(os.getenv("MONGO_URI"))
 spec = APISpec(
     title="Flasger Petstore",
     version="1.0.10",
@@ -92,7 +92,7 @@ def get_brands():
             schema:
                 $ref: "#/definitions/CarBrands"
     """
-    data = client.carstom_db.brands.find({})
+    data = None #client.carstom_db.brands.find({})
     brands = {"brands": [x["brand"] for x in data]}
     return jsonify(CarBrandsSchema().dump(brands))
 
@@ -111,7 +111,7 @@ def get_models():
                 $ref: "#/definitions/CarModels"
     """
     brand = request.args.get("brand")
-    data = client.carstom_db.models.find({"brand": brand})
+    data = None #client.carstom_db.models.find({"brand": brand})
     models = {"models": [x["model"] for x in data]}
     return jsonify(CarModelsSchema().dump(models))
 
@@ -130,7 +130,7 @@ def get_years():
                 $ref: "#/definitions/CarModelYears"
     """
     model = request.args.get("model")
-    data = client.carstom_db.years.find({"model": model})
+    data = None #client.carstom_db.years.find({"model": model})
     years = {"years": data[0]["years"]}
 
     return jsonify(CarModelYearsSchema().dump(years))
