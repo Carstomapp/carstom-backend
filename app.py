@@ -18,7 +18,7 @@ from PIL import Image
 from model import Rim_Detector
 
 load_dotenv()
-# client = MongoClient(os.getenv("MONGO_URI"))
+client = MongoClient(os.getenv("MONGO_URI"))
 spec = APISpec(
     title="Flasger Petstore",
     version="1.0.10",
